@@ -1,177 +1,197 @@
 # agent-sync
 
-여러 대의 컴퓨터에서 LLM CLI 에이전트(Claude Code, Codex)를 쓰면 기기마다
-메모리·설정이 따로 쌓입니다. agent-sync는 이를 `~/agent-sync` 폴더 하나로 모아
-전 기기에 실시간 동기화합니다 — **어떤 기기에서 작업하든 에이전트가 같은 기억과
-같은 설정으로 동작합니다.**
+**English** · [한국어](README.ko.md)
 
-- **P2P, 내부망 전용** — 동기화는 [Syncthing](https://syncthing.net)이 담당합니다.
-  클라우드 서버 없이 기기끼리 직접 암호화 통신하고, 외부 릴레이·글로벌 검색을 꺼서
-  파일이 인터넷으로 나가지 않습니다. 모든 기기가 완전한 사본을 가지므로 특정
-  기기가 꺼져 있어도 됩니다.
-- **에이전트가 설치** — 셋업은 각 기기의 에이전트에게 지시서(`setup/HANDOFF-*.md`)를
-  맡기는 방식입니다. 사람은 장치 ID를 전달하고 macOS 권한 팝업을 허용하는 것이
-  전부입니다.
-- **이 저장소는 뼈대만** — 스크립트와 공용 구성만 들어 있습니다. 메모리 내용과
-  개인 커스텀(에이전트·스킬 정의)은 git에 포함되지 않으므로, clone해서 시작하면
-  빈 상태에서 본인 기기들만의 독립 클러스터가 만들어집니다.
+Run LLM CLI agents (Claude Code, Codex) on more than one computer and each
+machine accumulates its own memory and settings. agent-sync gathers all of it
+into a single `~/agent-sync` folder and syncs it across every machine in real
+time — **whichever machine you work on, your agent runs with the same memory
+and the same configuration.**
 
-## 무엇이 동기화되나
+- **P2P, LAN-only** — sync is handled by [Syncthing](https://syncthing.net).
+  Your machines talk to each other directly over encrypted connections with no
+  cloud server; external relays and global discovery are disabled, so files
+  never leave your network. Every machine holds a full copy, so any machine
+  can be offline.
+- **Your agent installs it** — setup is delegated to the agent on each machine
+  via instruction documents (`setup/HANDOFF-*.md`). The human's job is passing
+  along a device ID and approving the macOS permission popup.
+- **This repo is a skeleton** — scripts and shared config only. Memory contents
+  and personal customizations (agent/skill definitions) are not in git, so
+  cloning gives you an empty, independent cluster of your own machines.
 
-| 항목 | 방식 |
+## What gets synced
+
+| Item | How |
 |---|---|
-| 프로젝트별 자동 메모리 | 세션 시작 훅이 각 git 저장소의 `.claude/settings.local.json`에 `autoMemoryDirectory`를 자동 생성 → 모든 기기가 같은 메모리 폴더 사용 |
-| 전역 메모리 | `~/.claude/CLAUDE.md`(심링크)가 `memory/_global/GLOBAL.md`를 임포트 → 모든 프로젝트·모든 기기의 세션에 로드 |
-| Claude Code 공유 설정 | `claude/settings.base.json`을 각 기기의 `~/.claude/settings.json`에 자동 병합 (기기 고유 항목은 보존) |
-| 개인 에이전트·스킬·커맨드 | `~/.claude/agents` 등 심링크 — 기기 간 동기화, git 배포에는 미포함 |
-| Codex 전역 지침 | `~/.codex/AGENTS.md` 심링크 — 같은 메모리 폴더를 읽고 쓰도록 안내 |
+| Per-project auto-memory | A SessionStart hook writes `autoMemoryDirectory` into each git repo's `.claude/settings.local.json` → every machine uses the same memory folder |
+| Global memory | `~/.claude/CLAUDE.md` (symlink) imports `memory/_global/GLOBAL.md` → loaded into every session on every machine |
+| Shared Claude Code settings | `claude/settings.base.json` is auto-merged into each machine's `~/.claude/settings.json` (machine-specific entries preserved) |
+| Personal agents · skills · commands | `~/.claude/agents` etc. are symlinks — synced across machines, not distributed via git |
+| Codex global instructions | `~/.codex/AGENTS.md` symlink — points Codex at the same memory folder |
 
-참고: `autoMemoryDirectory`는 커밋된 `.claude/settings.json`에서는 보안상 무시되기
-때문에, 훅이 기기마다 `settings.local.json`을 자동 생성하는 방식이 유일한 방법입니다.
-프로젝트마다·기기마다 수동 설정할 일은 없습니다.
+Note: `autoMemoryDirectory` is ignored for security reasons when set in a
+committed `.claude/settings.json`, so a hook generating `settings.local.json`
+per machine is the only way this works. There is nothing to configure per
+project or per machine.
 
-## 빠른 시작
+## Quick start
 
-### 첫 번째 기기 (main 역할)
+### First machine (main role)
 
-그 기기의 에이전트에게:
+Tell the agent on that machine:
 
-> **"`https://github.com/hierrr/agent-sync.git` 을 `~/agent-sync`로 clone하고
-> `setup/HANDOFF-main.md` 읽고 수행해"**
+> **"Clone `https://github.com/hierrr/agent-sync.git` to `~/agent-sync`, read
+> `setup/HANDOFF-main.md` and execute it."**
 
-에이전트가 셋업·검증을 마치면 이 기기의 **장치 ID**를 보고하고, **60분짜리 신규
-기기 등록 창**을 엽니다(이 시간 안에 셋업하는 기기는 자동 수락, 이후 자동 종료).
+Once the agent finishes setup and verification, it reports this machine's
+**device ID** and opens a **60-minute enrollment window** for new machines
+(machines set up within this window are auto-accepted; it closes
+automatically).
 
-main은 클러스터의 허브 1대입니다(신규 기기 소개 + 새벽 유지보수 담당). 데이터
-원본이라는 뜻은 아닙니다 — 모든 기기가 완전 사본을 가집니다.
+main is the cluster's single hub (it introduces new machines and runs nightly
+maintenance). It is not the data origin — every machine keeps a full copy.
 
-### 기기 추가 (sub 역할)
+### Adding machines (sub role)
 
-추가할 각 기기의 에이전트에게 — `<MAIN_ID>` 자리에 위에서 보고받은 장치 ID:
+Tell the agent on each machine you add — with `<MAIN_ID>` replaced by the
+device ID reported above:
 
-> **"`~/agent-sync/setup/HANDOFF-sub.md` 읽고 수행해. main ID는 `<MAIN_ID>`"**
+> **"Read `~/agent-sync/setup/HANDOFF-sub.md` and execute it. The main ID is
+> `<MAIN_ID>`."**
 
-등록 창이 열려 있으면 이걸로 끝 — 자동 수락되어 약 1분 안에 동기화가 시작됩니다.
-등록 창이 닫힌 뒤라면 sub 에이전트가 알려주는 장치 ID를 main 에이전트에게 전달해
-수락시키면 됩니다 (*"장치 `YYY` 수락해줘"*).
+If the enrollment window is open, that's it — the machine is auto-accepted and
+syncing starts within about a minute. If the window has closed, pass the
+device ID reported by the sub agent to the main agent and have it accepted
+(*"accept device `YYY`"*).
 
-에이전트 없이 직접 실행하려면:
+To run it yourself without an agent:
 
 ```bash
 git clone https://github.com/hierrr/agent-sync.git ~/agent-sync
 chmod +x ~/agent-sync/setup/setup-machine.sh
-~/agent-sync/setup/setup-machine.sh --role main                  # 첫 기기
-~/agent-sync/setup/setup-machine.sh --role sub --main-id <ID>    # 추가 기기
-~/agent-sync/setup/setup-machine.sh --accept <ID>                # main에서 나중 수락
-~/agent-sync/setup/setup-machine.sh --enroll [분]                # 등록 창 재개방
+~/agent-sync/setup/setup-machine.sh --role main                  # first machine
+~/agent-sync/setup/setup-machine.sh --role sub --main-id <ID>    # additional machines
+~/agent-sync/setup/setup-machine.sh --accept <ID>                # accept later, on main
+~/agent-sync/setup/setup-machine.sh --enroll [minutes]           # reopen enrollment window
 ```
 
-## 사람이 하는 일 (전체 요약)
+## What the human does (complete list)
 
-| 시점 | 할 일 |
+| When | Task |
 |---|---|
-| 첫 기기(main) | 에이전트에게 지시 → 보고받은 **main ID를 메모** |
-| 기기 추가(main 셋업 후 60분 이내) | 각 기기 에이전트에게 지시 (main ID 포함) |
-| 기기 추가(나중에) | 위와 동일 + **sub ID를 main 에이전트에게 전달** |
-| 각 기기 셋업 중(공통) | macOS **"Syncthing 로컬 네트워크 허용" 팝업 → 허용** 클릭 (기기당 1회) |
-| 그 외 | 없음 — 페어링·수락·동기화 전부 자동 |
+| First machine (main) | Prompt the agent → **note the main ID** it reports |
+| Adding machines (within 60 min of main setup) | Prompt each machine's agent (include the main ID) |
+| Adding machines (later) | Same as above + **pass the sub's ID to the main agent** |
+| During each machine's setup (all machines) | Click **Allow** on the macOS "Syncthing local network" popup (once per machine) |
+| Anything else | Nothing — pairing, acceptance, and sync are fully automatic |
 
-## 동작 방식
+## How it works
 
-- **자동 메모리 연결**: Claude Code의 SessionStart 훅(`claude/hooks/ensure-automemory.sh`)이
-  git 저장소를 열 때마다 그 저장소의 auto-memory 경로를 `~/agent-sync/memory/<저장소명>`
-  으로 지정합니다. 저장소의 `.claude`는 git에 커밋되지 않게 로컬 exclude 처리됩니다.
-- **설정 병합**: `setup/apply-settings.py`가 `claude/settings.base.json`(공유)을 각 기기의
-  `~/.claude/settings.json`에 병합합니다. permissions 등 기기 로컬 항목은 보존되고,
-  base가 바뀌면 감시 launchd가 자동 재적용합니다.
-- **새벽 유지보수** (main 전용, 4:30): 두 기기가 같은 파일을 동시에 수정해 생긴
-  Syncthing 충돌을 병합합니다 — 메모리 인덱스는 합집합, 에이전트·스킬 정의는
-  headless LLM 호출로 병합(원본은 `setup/logs/conflict-archive/`에 보존). Claude Code
-  내장 auto-dream의 잠금 파일 잔존 버그도 청소합니다.
-- **Syncthing은 메뉴바 앱으로 구동**: macOS 15+에서 로컬 네트워크 권한을 받을 수 있는
-  방식이 앱뿐이기 때문입니다 — 백그라운드 서비스(brew services)는 권한을 받지 못해
-  내부망 통신이 조용히 차단됩니다. `syncthing` 명령은 앱 내장 CLI를 가리키는 심링크로
-  제공되며, 구버전 brew 패키지가 있으면 셋업이 자동 정리합니다.
-- **보안**: 장치 인증은 Syncthing 인증서 지문(장치 ID)으로 이뤄지며 이 저장소에는
-  어떤 기기 정보도 들어 있지 않습니다. 등록 창이 열린 60분 동안은 main의 장치 ID를
-  아는 기기의 접속이 자동 수락되므로, 장치 ID는 신뢰하는 상대에게만 전달하세요.
+- **Auto-memory wiring**: Claude Code's SessionStart hook
+  (`claude/hooks/ensure-automemory.sh`) points each git repo's auto-memory at
+  `~/agent-sync/memory/<repo-name>` whenever you open it. The repo's `.claude`
+  is kept out of git via a local exclude.
+- **Settings merge**: `setup/apply-settings.py` merges the shared
+  `claude/settings.base.json` into each machine's `~/.claude/settings.json`.
+  Machine-local entries such as permissions are preserved, and a watcher
+  launchd re-applies automatically when the base changes.
+- **Nightly maintenance** (main only, 4:30 AM): merges Syncthing conflicts
+  caused by two machines editing the same file at once — memory indexes are
+  merged as a union, agent/skill definitions via a headless LLM call
+  (originals preserved in `setup/logs/conflict-archive/`). Also cleans up a
+  stale-lock-file bug in Claude Code's built-in auto-dream.
+- **Syncthing runs as the menu bar app**: on macOS 15+ the app is the only
+  form that can be granted Local Network permission — a background service
+  (brew services) can't receive it, and LAN traffic gets silently blocked.
+  The `syncthing` command is provided as a symlink to the app's built-in CLI,
+  and setup automatically cleans up an old brew package if present.
+- **Security**: device authentication uses Syncthing certificate fingerprints
+  (device IDs), and this repository contains no device information. While the
+  60-minute enrollment window is open, any machine that knows main's device ID
+  is auto-accepted — share the device ID only with machines you trust.
 
-## 요구 사항
+## Requirements
 
-- macOS (Windows는 아래 베타 안내 참고)
+- macOS (for Windows, see the beta notes below)
 - Claude Code CLI
-- Homebrew (Syncthing 자동 설치용 — 수동 설치로 대체 가능)
+- Homebrew (for automatic Syncthing install — manual install works too)
 
-## 운영
+## Operations
 
-- **설정 변경**: `claude/settings.base.json` 수정 → 저장하면 Syncthing이 전파하고,
-  각 기기의 감시 launchd가 자동 병합합니다.
-- **역할 이전**: 새 기기에서 `--role main` 실행 + 기존 main의
-  `com.palusomni.agentsync.merge` launchd 해제.
-- **git 이용 수칙**: 이 저장소는 배포·개선 공유용입니다. 셋업 이후 일상 동기화에
-  git은 관여하지 않으며, 스크립트를 개선했을 때만 관리 기기 한 대에서 커밋하세요.
+- **Changing settings**: edit `claude/settings.base.json` → on save, Syncthing
+  propagates it and each machine's watcher launchd merges it automatically.
+- **Moving the main role**: run `--role main` on the new machine + unload the
+  old main's `com.palusomni.agentsync.merge` launchd.
+- **Git usage**: this repository is for distribution and sharing improvements.
+  Day-to-day sync doesn't involve git at all; commit only from one managed
+  machine, and only when you've improved the scripts.
 
-## 문제 해결
+## Troubleshooting
 
-**다른 기기에 파일이 안 넘어온다** — 페어링 상태를 확인하세요. 아무 기기에서:
+**Files don't show up on another machine** — check pairing. On any machine:
 
 ```bash
-syncthing cli config devices list    # 자기 ID 외에 상대 기기들이 보여야 함
-syncthing cli config folders list    # agent-sync 폴더가 보여야 함
-syncthing cli show connections       # connected: true 항목이 있어야 함
+syncthing cli config devices list    # should list the other machines besides your own ID
+syncthing cli config folders list    # should list the agent-sync folder
+syncthing cli show connections       # should show entries with connected: true
 ```
 
-- 기기 목록은 맞는데 `connected: false`가 계속되면: 시스템 설정 > 개인정보 보호 및
-  보안 > **로컬 네트워크**에 Syncthing이 허용돼 있는지, 두 기기가 같은 내부망에
-  있는지 확인하세요 — 동기화가 내부망 전용이라 이 두 조건이 안 되면 연결이
-  성립하지 않습니다.
-- 기기 목록이 비어 있으면: sub에서 `--role sub --main-id <ID>`를 실행했는지 확인하고,
-  main에서 그 기기를 수락하세요 (`--accept <sub의 장치 ID>`). 필요하면
-  http://127.0.0.1:8384 (Syncthing GUI)에서 수동 조작도 가능합니다.
+- Device list is correct but `connected: false` persists: check that Syncthing
+  is allowed under System Settings > Privacy & Security > **Local Network**,
+  and that both machines are on the same LAN — sync is LAN-only, so without
+  both of these no connection can be established.
+- Device list is empty: check that you ran `--role sub --main-id <ID>` on the
+  sub, and accept that machine on main (`--accept <sub's device ID>`). If
+  needed, you can also operate manually at http://127.0.0.1:8384 (Syncthing
+  GUI).
 
-**세션이 예전 메모리를 본다** — 메모리는 세션 시작 시 로드됩니다. 다른 기기에서
-방금 저장된 메모리는 새 세션부터 반영됩니다.
+**A session sees stale memory** — memory is loaded at session start. Memory
+just saved on another machine appears from the next session on.
 
-**셋업을 되돌리고 싶다** — 셋업이 만든 백업으로 복구합니다:
-`~/.claude/settings.json.pre-agent-sync.bak`(설정),
-`~/.claude/*.premerge.bak`(심링크 전 원본).
+**Undoing the setup** — restore from the backups the setup created:
+`~/.claude/settings.json.pre-agent-sync.bak` (settings),
+`~/.claude/*.premerge.bak` (pre-symlink originals).
 
-## Windows 지원 (베타)
+## Windows support (beta)
 
-네이티브 스크립트는 아직 없습니다. Windows 기기는 **그 기기의 에이전트에게 설치를
-맡기는 방식**을 권장합니다 — 셸·권한 등 환경 편차가 커서, 기기 상황을 직접 확인할
-수 있는 에이전트가 판단하며 진행하는 편이 안전합니다.
+There are no native scripts yet. For Windows machines we recommend
+**delegating the install to that machine's agent** — shell and permission
+environments vary too much, and an agent that can inspect the machine directly
+is the safer operator.
 
-에이전트에게: *"이 README와 `setup/` 소스를 읽고, 아래 대응표를 참고해 이 Windows
-기기에 동등한 셋업을 구성하고 각 단계를 검증해줘"* 라고 지시하세요.
+Tell the agent: *"Read this README and the `setup/` sources, and using the
+mapping table below, build the equivalent setup on this Windows machine and
+verify each step."*
 
-| macOS 구성 요소 | Windows 대응 |
+| macOS component | Windows equivalent |
 |---|---|
-| `setup-machine.sh` (bash) | PowerShell로 동등 로직 수행 |
-| launchd (감시·새벽 작업) | 작업 스케줄러 (Task Scheduler) |
-| Syncthing 메뉴바 앱 | winget/직접 설치 (SyncTrayzor 등) |
-| `~/.claude/*` 심링크 | 개발자 모드 활성화 후 심링크 (또는 junction) |
-| SessionStart 훅 (bash+python3) | Git Bash 설치 권장 (없으면 훅이 PowerShell로 실행됨 — 포팅 필요) |
-| 경로 `~/agent-sync` | `%USERPROFILE%\agent-sync` (Claude Code의 `~/` 확장은 OS 무관 동작) |
+| `setup-machine.sh` (bash) | Equivalent logic in PowerShell |
+| launchd (watcher / nightly job) | Task Scheduler |
+| Syncthing menu bar app | winget / manual install (SyncTrayzor etc.) |
+| `~/.claude/*` symlinks | Enable Developer Mode, then symlinks (or junctions) |
+| SessionStart hook (bash+python3) | Git Bash recommended (otherwise the hook runs under PowerShell — needs porting) |
+| Path `~/agent-sync` | `%USERPROFILE%\agent-sync` (Claude Code expands `~/` on any OS) |
 
-베타인 만큼, 구성 후 HANDOFF 문서의 검증 항목이 모두 통과하는지 반드시 확인하세요.
+It's a beta: after building it, make sure every verification item in the
+HANDOFF documents passes.
 
-## 폴더 구조
+## Folder layout
 
 ```
 ~/agent-sync/
-├── memory/                    # 자동 메모리 (Syncthing 전용, git 미포함)
-│   ├── _global/GLOBAL.md      #   전역 메모리 — 모든 세션에 로드
-│   └── <저장소명>/            #   프로젝트별 메모리 — 훅이 자동 지정
+├── memory/                    # auto-memory (Syncthing-only, not in git)
+│   ├── _global/GLOBAL.md      #   global memory — loaded into every session
+│   └── <repo-name>/           #   per-project memory — wired up by the hook
 ├── claude/
-│   ├── CLAUDE.md              # 전역 지침 (~/.claude/CLAUDE.md 심링크 대상)
-│   ├── agents|skills|commands/  # 개인 커스텀 (Syncthing 전용, git 미포함)
+│   ├── CLAUDE.md              # global instructions (symlink target of ~/.claude/CLAUDE.md)
+│   ├── agents|skills|commands/  # personal customizations (Syncthing-only, not in git)
 │   ├── hooks/ensure-automemory.sh
-│   └── settings.base.json     # 공유 설정 (SessionStart 훅, autoDreamEnabled 등)
-├── codex/AGENTS.md            # Codex 전역 지침
-└── setup/                     # 셋업 스크립트, launchd 정의, 에이전트용 지시서
+│   └── settings.base.json     # shared settings (SessionStart hook, autoDreamEnabled, ...)
+├── codex/AGENTS.md            # Codex global instructions
+└── setup/                     # setup scripts, launchd definitions, agent handoff docs
 ```
 
-## 라이선스
+## License
 
 [MIT](LICENSE)
