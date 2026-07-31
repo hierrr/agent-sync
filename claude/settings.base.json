@@ -1,0 +1,20 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "autoDreamEnabled": true,
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/agent-sync/claude/hooks/ensure-automemory.sh\"",
+            "timeout": 15,
+            "statusMessage": "auto-memory 경로 확인"
+          }
+        ]
+      }
+    ]
+  }
+}

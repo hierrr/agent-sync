@@ -1,0 +1,5 @@
+// Syncthing 제외 목록 (이 파일 자체는 동기화되지 않으므로 git으로 각 머신에 배포됨)
+// git 메타데이터를 P2P 동기화하면 저장소가 손상될 수 있음 — 각 머신의 git 상태는 독립
+/.git
+/setup/logs
+.DS_Store
