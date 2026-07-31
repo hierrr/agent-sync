@@ -171,3 +171,7 @@ syncthing cli show connections       # connected: true 항목이 있어야 함
 ├── codex/AGENTS.md            # Codex 전역 지침
 └── setup/                     # 셋업 스크립트, launchd 정의, 에이전트용 지시서
 ```
+
+## 라이선스
+
+[MIT](LICENSE)
