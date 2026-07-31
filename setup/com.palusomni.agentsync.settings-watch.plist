@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.palusomni.agentsync.settings-watch</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>__HOME__/agent-sync/setup/apply-settings.py</string>
+    </array>
+    <key>WatchPaths</key>
+    <array>
+        <string>__HOME__/agent-sync/claude/settings.base.json</string>
+    </array>
+    <key>StandardOutPath</key>
+    <string>__HOME__/agent-sync/setup/logs/settings-watch.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/agent-sync/setup/logs/settings-watch.log</string>
+</dict>
+</plist>
