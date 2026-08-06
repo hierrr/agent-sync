@@ -96,11 +96,18 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
   `claude/settings.base.json` into each machine's `~/.claude/settings.json`.
   Machine-local entries such as permissions are preserved, and a watcher
   launchd re-applies automatically when the base changes.
-- **Nightly maintenance** (main only, 4:30 AM): merges Syncthing conflicts
-  caused by two machines editing the same file at once — memory indexes are
-  merged as a union, agent/skill definitions via a headless LLM call
-  (originals preserved in `setup/logs/conflict-archive/`). Also cleans up a
-  stale-lock-file bug in Claude Code's built-in auto-dream.
+- **Nightly maintenance** (main only, 4:30 AM): first merges Syncthing
+  conflicts caused by two machines editing the same file at once — memory
+  indexes as a union, agent/skill definitions via a headless LLM call
+  (originals preserved in `setup/logs/conflict-archive/`) — then runs a
+  **dream pass**: a headless LLM call curates each memory directory in place,
+  merging duplicate or contradictory facts, folding conflict review copies
+  back in, converting relative dates to absolute, promoting project-agnostic
+  facts to `_global/GLOBAL.md`, and rebuilding each `MEMORY.md` index. Every
+  directory (including `GLOBAL.md`) is archived to `setup/logs/dream-archive/`
+  first and restored atomically if the run fails its sanity guards; unchanged
+  directories are skipped. Also cleans up a stale-lock-file bug in Claude
+  Code's built-in auto-dream.
 - **Syncthing runs as the menu bar app**: on macOS 15+ the app is the only
   form that can be granted Local Network permission — a background service
   (brew services) can't receive it, and LAN traffic gets silently blocked.

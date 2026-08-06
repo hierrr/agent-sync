@@ -86,10 +86,15 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 - **설정 병합**: `setup/apply-settings.py`가 `claude/settings.base.json`(공유)을 각 기기의
   `~/.claude/settings.json`에 병합합니다. permissions 등 기기 로컬 항목은 보존되고,
   base가 바뀌면 감시 launchd가 자동 재적용합니다.
-- **새벽 유지보수** (main 전용, 4:30): 두 기기가 같은 파일을 동시에 수정해 생긴
-  Syncthing 충돌을 병합합니다 — 메모리 인덱스는 합집합, 에이전트·스킬 정의는
-  headless LLM 호출로 병합(원본은 `setup/logs/conflict-archive/`에 보존). Claude Code
-  내장 auto-dream의 잠금 파일 잔존 버그도 청소합니다.
+- **새벽 유지보수** (main 전용, 4:30): 먼저 두 기기가 같은 파일을 동시에 수정해 생긴
+  Syncthing 충돌을 병합하고 — 메모리 인덱스는 합집합, 에이전트·스킬 정의는
+  headless LLM 호출로 병합(원본은 `setup/logs/conflict-archive/`에 보존) — 이어서
+  **dream 패스**가 각 메모리 폴더를 큐레이션합니다: 중복·모순 사실 병합, 충돌
+  리뷰 사본 통합, 상대 날짜의 절대화, 프로젝트 무관 사실의 `_global/GLOBAL.md`
+  승격, `MEMORY.md` 인덱스 재구축. 실행 전 폴더 전체(GLOBAL.md 포함)를
+  `setup/logs/dream-archive/`에 보관했다가 사후 점검 실패 시 원자적으로 복원하며,
+  변경 없는 폴더는 건너뜁니다. Claude Code 내장 auto-dream의 잠금 파일 잔존
+  버그도 청소합니다.
 - **Syncthing은 메뉴바 앱으로 구동**: macOS 15+에서 로컬 네트워크 권한을 받을 수 있는
   방식이 앱뿐이기 때문입니다 — 백그라운드 서비스(brew services)는 권한을 받지 못해
   내부망 통신이 조용히 차단됩니다. `syncthing` 명령은 앱 내장 CLI를 가리키는 심링크로
