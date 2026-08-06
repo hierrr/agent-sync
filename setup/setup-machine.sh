@@ -190,7 +190,27 @@ launchctl unload "$LAUNCH/com.palusomni.agentsync.settings-watch.plist" 2>/dev/n
 launchctl load "$LAUNCH/com.palusomni.agentsync.settings-watch.plist"
 echo "loaded settings-watch launch agent"
 
-# 6. main 만: 새벽 4:30 메모리 유지보수 (동기화 충돌 병합 + auto-dream 잠금 청소)
+# 6. pull 브로드캐스트: 한 기기에서 pull하면 이 기기까지 git이 자동으로 맞춰진다.
+#    post-merge 훅이 pull(merge) 성공 시 .last-pull에 epoch를 기록 → Syncthing이
+#    그 파일을 전 기기에 전파 → 각 기기의 감시 에이전트가 변경을 감지해
+#    git-align.sh로 origin/main에 정렬한다 (실제 내용 차이가 있으면 손대지 않음).
+cat > "$SYNC/.git/hooks/post-merge" <<'HOOK'
+#!/bin/bash
+# agent-sync-managed -- setup-machine.sh overwrites this on every run.
+# Pull(merge) succeeded: stamp a sentinel Syncthing can propagate so every
+# other machine's git-align watcher knows to realign.
+date +%s > "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.last-pull"
+HOOK
+chmod +x "$SYNC/.git/hooks/post-merge"
+echo "installed post-merge git hook"
+
+sed "s|__HOME__|$HOME|g" "$SYNC/setup/com.palusomni.agentsync.git-align.plist" \
+    > "$LAUNCH/com.palusomni.agentsync.git-align.plist"
+launchctl unload "$LAUNCH/com.palusomni.agentsync.git-align.plist" 2>/dev/null || true
+launchctl load "$LAUNCH/com.palusomni.agentsync.git-align.plist"
+echo "loaded git-align watch launch agent"
+
+# 7. main 만: 새벽 4:30 메모리 유지보수 (git 정렬 → 동기화 충돌 병합 → dream 패스)
 if [ "$ROLE" = "main" ]; then
     sed "s|__HOME__|$HOME|g" "$SYNC/setup/com.palusomni.agentsync.merge.plist" \
         > "$LAUNCH/com.palusomni.agentsync.merge.plist"
@@ -199,7 +219,7 @@ if [ "$ROLE" = "main" ]; then
     echo "loaded nightly merge launch agent (main role)"
 fi
 
-# 7. Syncthing 설치·기동·폴더 등록·내부망 전용·페어링
+# 8. Syncthing 설치·기동·폴더 등록·내부망 전용·페어링
 ensure_syncthing
 ensure_folder
 ensure_lan_only

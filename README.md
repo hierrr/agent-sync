@@ -131,8 +131,13 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 - **Moving the main role**: run `--role main` on the new machine + unload the
   old main's `com.palusomni.agentsync.merge` launchd.
 - **Git usage**: this repository is for distribution and sharing improvements.
-  Day-to-day sync doesn't involve git at all; commit only from one managed
-  machine, and only when you've improved the scripts.
+  To pick up a change, pull once on any machine — file content reaches every
+  other machine within seconds via Syncthing, and each machine's own git state
+  aligns to it automatically (a post-merge hook broadcasts a sentinel that
+  triggers a watcher on every machine, with a session-start check and the
+  nightly job as fallbacks), so there's no manual `git reset` to run on the
+  other machines. Still commit only from one managed machine, and only when
+  you've improved the scripts.
 
 ## Troubleshooting
 

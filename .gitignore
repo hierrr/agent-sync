@@ -6,6 +6,8 @@ claude/skills/
 claude/commands/
 # 머신 로컬 런타임 산출물
 setup/logs/
+# pull 브로드캐스트 센티널 — Syncthing으로 기기 간 전파되는 값이라 git 관리 대상 아님
+/.last-pull
 # Syncthing 내부 파일 (.stignore는 Syncthing이 동기화하지 않으므로 git이 배포해야 함 — 제외하지 않음)
 .stfolder/
 .stversions/

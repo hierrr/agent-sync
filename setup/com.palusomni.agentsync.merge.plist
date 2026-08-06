@@ -6,8 +6,8 @@
     <string>com.palusomni.agentsync.merge</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
-        <string>__HOME__/agent-sync/setup/merge-sync-conflicts.py</string>
+        <string>/bin/bash</string>
+        <string>__HOME__/agent-sync/setup/nightly.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
