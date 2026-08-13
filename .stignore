@@ -2,4 +2,6 @@
 // git 메타데이터를 P2P 동기화하면 저장소가 손상될 수 있음 — 각 머신의 git 상태는 독립
 /.git
 /setup/logs
+// MADISON 기기 신원(env 토큰)·spool은 기기마다 달라야 함 — 복제되면 세 기기가 같은 기기로 보고됨 (MADISON §8.4)
+/claude/madison
 .DS_Store
