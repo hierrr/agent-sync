@@ -210,6 +210,15 @@ launchctl unload "$LAUNCH/com.palusomni.agentsync.git-align.plist" 2>/dev/null |
 launchctl load "$LAUNCH/com.palusomni.agentsync.git-align.plist"
 echo "loaded git-align watch launch agent"
 
+# 6.5. Syncthing 자가 복구 감시: 5분 간격으로 끊긴 기기가 있으면 내부망을
+#      22000 포트로 스캔해 재발견하고 주소를 갱신한다 (DHCP로 상대 IP가
+#      바뀌어 조용히 끊기는 문제 대응). main·sub 공통.
+sed "s|__HOME__|$HOME|g" "$SYNC/setup/com.palusomni.agentsync.heal.plist" \
+    > "$LAUNCH/com.palusomni.agentsync.heal.plist"
+launchctl unload "$LAUNCH/com.palusomni.agentsync.heal.plist" 2>/dev/null || true
+launchctl load "$LAUNCH/com.palusomni.agentsync.heal.plist"
+echo "loaded syncthing heal watch launch agent"
+
 # 7. main 만: 새벽 4:30 메모리 유지보수 (git 정렬 → 동기화 충돌 병합 → dream 패스)
 if [ "$ROLE" = "main" ]; then
     sed "s|__HOME__|$HOME|g" "$SYNC/setup/com.palusomni.agentsync.merge.plist" \
