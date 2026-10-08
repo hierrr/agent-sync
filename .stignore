@@ -4,4 +4,6 @@
 /setup/logs
 // MADISON 기기 신원(env 토큰)·spool은 기기마다 달라야 함 — 복제되면 세 기기가 같은 기기로 보고됨 (MADISON §8.4)
 /claude/madison
+// Claude Code 스킬 동기화 라운드 마커 — 기기마다 제각각 쓰는 상태 파일이라 복제하면 충돌만 생김 (2026-10-08)
+.last-complete-round
 .DS_Store
