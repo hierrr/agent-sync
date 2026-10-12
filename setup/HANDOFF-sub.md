@@ -16,6 +16,11 @@
    - 훅 파이프 테스트: 아무 git 저장소에서 `echo '{}' | ~/agent-sync/claude/hooks/ensure-automemory.sh`
      실행 후 그 저장소의 `.claude/settings.local.json` 에 autoMemoryDirectory 가 생겼는지
    - `syncthing cli config devices list` 에 main ID가 있는지
+   - `[ -f ~/agent-sync/memory/_global/GLOBAL.md ] && echo OK` — sub는 GLOBAL.md를
+     생성하지 않고 클러스터 동기화로 받는다. 동기화 완료 후 OK가 나오는지 (바로
+     없으면 main과의 연결을 확인한 뒤 재확인)
+   - `git -C ~/agent-sync status --short` 출력이 비어 있는지 (셋업이 git 추적
+     파일을 더럽히지 않음 — 기존 CLAUDE.md가 있던 기기 포함)
 4. **연결 확인** (main 등록 창이 열려 있으면 1~2분 내 자동 수락됨):
    `syncthing cli show connections` 에서 main이 connected 인지. 2분 정도 기다렸다
    재확인해도 된다.

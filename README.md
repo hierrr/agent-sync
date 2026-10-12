@@ -6,7 +6,8 @@ Run LLM CLI agents (Claude Code, Codex) on more than one computer and each
 machine accumulates its own memory and settings. agent-sync gathers all of it
 into a single `~/agent-sync` folder and syncs it across every machine in real
 time — **whichever machine you work on, your agent runs with the same memory
-and the same configuration.**
+and the same configuration.** If you only have one machine, a **solo mode**
+gives you the cross-agent unification without any syncing.
 
 - **P2P, LAN-only** — sync is handled by [Syncthing](https://syncthing.net).
   Your machines talk to each other directly over encrypted connections with no
@@ -65,6 +66,20 @@ syncing starts within about a minute. If the window has closed, pass the
 device ID reported by the sub agent to the main agent and have it accepted
 (*"accept device `YYY`"*).
 
+### Single machine (solo role)
+
+If you only have one machine — and just want memory and settings unified
+across your agents — you can set up without Syncthing. Tell the agent on that
+machine:
+
+> **"Clone `https://github.com/hierrr/agent-sync.git` to `~/agent-sync`, read
+> `setup/HANDOFF-solo.md` and execute it."**
+
+The nightly memory maintenance (dream pass) is included; only Syncthing and the
+cross-machine sync pieces are left out. To add machines later, run
+`--role main` on this machine — the existing setup is kept and the sync pieces
+are layered on top.
+
 To run it yourself without an agent:
 
 ```bash
@@ -72,6 +87,7 @@ git clone https://github.com/hierrr/agent-sync.git ~/agent-sync
 chmod +x ~/agent-sync/setup/setup-machine.sh
 ~/agent-sync/setup/setup-machine.sh --role main                  # first machine
 ~/agent-sync/setup/setup-machine.sh --role sub --main-id <ID>    # additional machines
+~/agent-sync/setup/setup-machine.sh --role solo                  # single machine (no sync)
 ~/agent-sync/setup/setup-machine.sh --accept <ID>                # accept later, on main
 ~/agent-sync/setup/setup-machine.sh --enroll [minutes]           # reopen enrollment window
 ```
@@ -81,6 +97,7 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 | When | Task |
 |---|---|
 | First machine (main) | Prompt the agent → **note the main ID** it reports |
+| Single machine (solo) | Prompt the agent — no ID to pass, no popup |
 | Adding machines (within 60 min of main setup) | Prompt each machine's agent (include the main ID) |
 | Adding machines (later) | Same as above + **pass the sub's ID to the main agent** |
 | During each machine's setup (all machines) | Click **Allow** on the macOS "Syncthing local network" popup (once per machine) |
@@ -96,7 +113,12 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
   `claude/settings.base.json` into each machine's `~/.claude/settings.json`.
   Machine-local entries such as permissions are preserved, and a watcher
   launchd re-applies automatically when the base changes.
-- **Nightly maintenance** (main only, 4:30 AM): first merges Syncthing
+- **Global memory bootstrap**: setup on the first machine (main or solo)
+  creates a skeleton `memory/_global/GLOBAL.md` (sub machines receive it via
+  cluster sync). If a `~/.claude/CLAUDE.md` existed before setup, its content
+  is absorbed into GLOBAL.md and the original is kept as `.premerge.bak` —
+  git-tracked files are never touched.
+- **Nightly maintenance** (main and solo, 4:30 AM): first merges Syncthing
   conflicts caused by two machines editing the same file at once — memory
   indexes as a union, agent/skill definitions via a headless LLM call
   (originals preserved in `setup/logs/conflict-archive/`) — then runs a
@@ -122,7 +144,8 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 
 - macOS (for Windows, see the beta notes below)
 - Claude Code CLI
-- Homebrew (for automatic Syncthing install — manual install works too)
+- Homebrew (for automatic Syncthing install — manual install works too; not
+  needed in solo mode, which doesn't use Syncthing)
 
 ## Operations
 
@@ -130,6 +153,9 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
   propagates it and each machine's watcher launchd merges it automatically.
 - **Moving the main role**: run `--role main` on the new machine + unload the
   old main's `com.palusomni.agentsync.merge` launchd.
+- **Converting solo → cluster**: run `--role main` on the same machine — the
+  existing setup is kept and the sync pieces are layered on top. Adding
+  machines afterwards works exactly as in Quick start above.
 - **Git usage**: this repository is for distribution and sharing improvements.
   To pick up a change, pull once on any machine — file content reaches every
   other machine within seconds via Syncthing, and each machine's own git state

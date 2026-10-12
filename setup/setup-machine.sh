@@ -4,6 +4,7 @@
 # 사용법:
 #   ./setup-machine.sh --role main                  # 허브 1대. 완료 후 60분간 신규 기기 자동 수락
 #   ./setup-machine.sh --role sub --main-id <ID>    # 나머지 모든 기기 (<ID> = main 셋업이 출력한 장치 ID)
+#   ./setup-machine.sh --role solo                  # 단일 기기 — Syncthing 없이 에이전트 간 통합만
 #   ./setup-machine.sh --accept <ID>                # main에서 특정 기기 즉시 수락 (나중 추가용)
 #   ./setup-machine.sh --enroll [분]                # main에서 신규 기기 등록 창 재개방 (기본 60분)
 #   ./setup-machine.sh --enroll-stop                # 등록 창 즉시 닫기
@@ -129,8 +130,8 @@ if [ -n "$ENROLL_ONLY" ]; then
     exit 0
 fi
 
-if [ "$ROLE" != "main" ] && [ "$ROLE" != "sub" ]; then
-    echo "사용법: --role main | --role sub --main-id <ID> | --enroll [분] | --enroll-stop" >&2
+if [ "$ROLE" != "main" ] && [ "$ROLE" != "sub" ] && [ "$ROLE" != "solo" ]; then
+    echo "사용법: --role main | --role sub --main-id <ID> | --role solo | --enroll [분] | --enroll-stop" >&2
     exit 1
 fi
 if [ "$ROLE" = "sub" ] && [ -z "$MAIN_ID" ]; then
@@ -159,11 +160,38 @@ for d in agents skills commands; do
     echo "linked ~/.claude/$d"
 done
 
-# 2. 전역 CLAUDE.md 심링크 (기존 내용은 동기화본에 병합 후 보존)
+# 1.5. 전역 메모리 뼈대: CLAUDE.md가 임포트하는 GLOBAL.md가 없으면 생성.
+#      main·solo(클러스터의 첫/유일 기기)만 — sub는 기존 클러스터에서 Syncthing으로
+#      받으므로 여기서 만들면 동기화 충돌이 난다.
+if [ "$ROLE" != "sub" ] && [ ! -f "$SYNC/memory/_global/GLOBAL.md" ]; then
+    mkdir -p "$SYNC/memory/_global"
+    cat > "$SYNC/memory/_global/GLOBAL.md" <<'GLOBAL'
+# 전역 메모리
+
+모든 프로젝트·모든 세션에 적용되는 기억. 프로젝트 고유 사실은 `memory/<저장소명>/`에 둔다.
+
+## 사용자 성향
+
+## 도구·작업 방식 선호
+
+## 전역 피드백 (모든 프로젝트 공통)
+GLOBAL
+    echo "created memory/_global/GLOBAL.md skeleton"
+fi
+
+# 2. 전역 CLAUDE.md 심링크. 기존 파일 내용은 git 추적 파일(claude/CLAUDE.md)이
+#    아니라 git 미추적인 GLOBAL.md로 흡수한다 — 추적 파일에 붙이면 작업 트리가
+#    영구히 더러워져 git 정렬이 막히고 pull 충돌이 난다.
 target="$HOME/.claude/CLAUDE.md"
 if [ ! -L "$target" ]; then
     if [ -f "$target" ]; then
-        cat "$target" >> "$SYNC/claude/CLAUDE.md"
+        mkdir -p "$SYNC/memory/_global"
+        {
+            echo ""
+            echo "## 셋업 시 흡수된 기존 전역 지침 ($(hostname -s), $(date +%F))"
+            echo ""
+            cat "$target"
+        } >> "$SYNC/memory/_global/GLOBAL.md"
         mv "$target" "$target.premerge.bak"
     fi
     ln -s "$SYNC/claude/CLAUDE.md" "$target"
@@ -190,42 +218,56 @@ launchctl unload "$LAUNCH/com.palusomni.agentsync.settings-watch.plist" 2>/dev/n
 launchctl load "$LAUNCH/com.palusomni.agentsync.settings-watch.plist"
 echo "loaded settings-watch launch agent"
 
-# 6. pull 브로드캐스트: 한 기기에서 pull하면 이 기기까지 git이 자동으로 맞춰진다.
-#    post-merge 훅이 pull(merge) 성공 시 .last-pull에 epoch를 기록 → Syncthing이
-#    그 파일을 전 기기에 전파 → 각 기기의 감시 에이전트가 변경을 감지해
-#    git-align.sh로 origin/main에 정렬한다 (실제 내용 차이가 있으면 손대지 않음).
-cat > "$SYNC/.git/hooks/post-merge" <<'HOOK'
+# solo: 기기 간 전파가 없으므로 6·6.5단계(pull 브로드캐스트·자가 복구 감시)는 설치하지 않는다.
+if [ "$ROLE" != "solo" ]; then
+    # 6. pull 브로드캐스트: 한 기기에서 pull하면 이 기기까지 git이 자동으로 맞춰진다.
+    #    post-merge 훅이 pull(merge) 성공 시 .last-pull에 epoch를 기록 → Syncthing이
+    #    그 파일을 전 기기에 전파 → 각 기기의 감시 에이전트가 변경을 감지해
+    #    git-align.sh로 origin/main에 정렬한다 (실제 내용 차이가 있으면 손대지 않음).
+    # (heredoc 본문·종료자는 들여쓰면 안 되므로 열 0에 둔다)
+    cat > "$SYNC/.git/hooks/post-merge" <<'HOOK'
 #!/bin/bash
 # agent-sync-managed -- setup-machine.sh overwrites this on every run.
 # Pull(merge) succeeded: stamp a sentinel Syncthing can propagate so every
 # other machine's git-align watcher knows to realign.
 date +%s > "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.last-pull"
 HOOK
-chmod +x "$SYNC/.git/hooks/post-merge"
-echo "installed post-merge git hook"
+    chmod +x "$SYNC/.git/hooks/post-merge"
+    echo "installed post-merge git hook"
 
-sed "s|__HOME__|$HOME|g" "$SYNC/setup/com.palusomni.agentsync.git-align.plist" \
-    > "$LAUNCH/com.palusomni.agentsync.git-align.plist"
-launchctl unload "$LAUNCH/com.palusomni.agentsync.git-align.plist" 2>/dev/null || true
-launchctl load "$LAUNCH/com.palusomni.agentsync.git-align.plist"
-echo "loaded git-align watch launch agent"
+    sed "s|__HOME__|$HOME|g" "$SYNC/setup/com.palusomni.agentsync.git-align.plist" \
+        > "$LAUNCH/com.palusomni.agentsync.git-align.plist"
+    launchctl unload "$LAUNCH/com.palusomni.agentsync.git-align.plist" 2>/dev/null || true
+    launchctl load "$LAUNCH/com.palusomni.agentsync.git-align.plist"
+    echo "loaded git-align watch launch agent"
 
-# 6.5. Syncthing 자가 복구 감시: 5분 간격으로 끊긴 기기가 있으면 내부망을
-#      22000 포트로 스캔해 재발견하고 주소를 갱신한다 (DHCP로 상대 IP가
-#      바뀌어 조용히 끊기는 문제 대응). main·sub 공통.
-sed "s|__HOME__|$HOME|g" "$SYNC/setup/com.palusomni.agentsync.heal.plist" \
-    > "$LAUNCH/com.palusomni.agentsync.heal.plist"
-launchctl unload "$LAUNCH/com.palusomni.agentsync.heal.plist" 2>/dev/null || true
-launchctl load "$LAUNCH/com.palusomni.agentsync.heal.plist"
-echo "loaded syncthing heal watch launch agent"
+    # 6.5. Syncthing 자가 복구 감시: 5분 간격으로 끊긴 기기가 있으면 내부망을
+    #      22000 포트로 스캔해 재발견하고 주소를 갱신한다 (DHCP로 상대 IP가
+    #      바뀌어 조용히 끊기는 문제 대응). main·sub 공통.
+    sed "s|__HOME__|$HOME|g" "$SYNC/setup/com.palusomni.agentsync.heal.plist" \
+        > "$LAUNCH/com.palusomni.agentsync.heal.plist"
+    launchctl unload "$LAUNCH/com.palusomni.agentsync.heal.plist" 2>/dev/null || true
+    launchctl load "$LAUNCH/com.palusomni.agentsync.heal.plist"
+    echo "loaded syncthing heal watch launch agent"
+fi
 
-# 7. main 만: 새벽 4:30 메모리 유지보수 (git 정렬 → 동기화 충돌 병합 → dream 패스)
-if [ "$ROLE" = "main" ]; then
+# 7. main·solo: 새벽 4:30 메모리 유지보수 (git 정렬 → 동기화 충돌 병합 → dream 패스)
+if [ "$ROLE" = "main" ] || [ "$ROLE" = "solo" ]; then
     sed "s|__HOME__|$HOME|g" "$SYNC/setup/com.palusomni.agentsync.merge.plist" \
         > "$LAUNCH/com.palusomni.agentsync.merge.plist"
     launchctl unload "$LAUNCH/com.palusomni.agentsync.merge.plist" 2>/dev/null || true
     launchctl load "$LAUNCH/com.palusomni.agentsync.merge.plist"
-    echo "loaded nightly merge launch agent (main role)"
+    echo "loaded nightly merge launch agent ($ROLE role)"
+fi
+
+# solo: Syncthing 없이 여기서 종료. 나중에 기기를 추가하려면 --role main 재실행
+# (idempotent — 기존 구성은 유지되고 동기화 구성만 더해진다).
+if [ "$ROLE" = "solo" ]; then
+    echo ""
+    echo "=== 셋업 완료 (role: solo) ==="
+    echo "단일 기기 모드: Syncthing·기기 간 동기화 구성은 설치하지 않았습니다."
+    echo "나중에 기기를 추가하려면 이 기기에서 다시 실행하세요: ./setup-machine.sh --role main"
+    exit 0
 fi
 
 # 8. Syncthing 설치·기동·폴더 등록·내부망 전용·페어링

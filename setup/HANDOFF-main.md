@@ -19,6 +19,10 @@ main은 클러스터의 허브 1대다 (신규 기기 수락 + 새벽 유지보�
      실행 후 그 저장소의 `.claude/settings.local.json` 에 autoMemoryDirectory 가 생겼는지
    - `syncthing cli config folders list` 에 agent-sync 가 있는지
    - `cat ~/agent-sync/setup/logs/enroll.pid` 존재 (60분 등록 창 열림)
+   - `[ -f ~/agent-sync/memory/_global/GLOBAL.md ] && echo OK` 가 OK를 출력하는지
+     (전역 메모리 뼈대가 생성됐는지)
+   - `git -C ~/agent-sync status --short` 출력이 비어 있는지 (셋업이 git 추적
+     파일을 더럽히지 않음 — 기존 CLAUDE.md가 있던 기기 포함)
 4. **사용자에게 다음 형식으로 안내한다** (장치 ID는 스크립트 출력값):
 
    > 셋업과 검증이 끝났습니다. 이 기기(main)의 장치 ID는 `XXXXXXX-...` 입니다.

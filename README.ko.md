@@ -5,7 +5,8 @@
 여러 대의 컴퓨터에서 LLM CLI 에이전트(Claude Code, Codex)를 쓰면 기기마다
 메모리·설정이 따로 쌓입니다. agent-sync는 이를 `~/agent-sync` 폴더 하나로 모아
 전 기기에 실시간 동기화합니다 — **어떤 기기에서 작업하든 에이전트가 같은 기억과
-같은 설정으로 동작합니다.**
+같은 설정으로 동작합니다.** 기기가 한 대라면 **solo 모드**로 동기화 없이
+에이전트 간 통합만 쓸 수도 있습니다.
 
 - **P2P, 내부망 전용** — 동기화는 [Syncthing](https://syncthing.net)이 담당합니다.
   클라우드 서버 없이 기기끼리 직접 암호화 통신하고, 외부 릴레이·글로벌 검색을 꺼서
@@ -57,6 +58,18 @@ main은 클러스터의 허브 1대입니다(신규 기기 소개 + 새벽 유�
 등록 창이 닫힌 뒤라면 sub 에이전트가 알려주는 장치 ID를 main 에이전트에게 전달해
 수락시키면 됩니다 (*"장치 `YYY` 수락해줘"*).
 
+### 단일 기기 (solo 역할)
+
+기기가 한 대뿐이라면 — 여러 에이전트의 메모리·설정 통합만 필요하다면 —
+Syncthing 없이 셋업할 수 있습니다. 그 기기의 에이전트에게:
+
+> **"`https://github.com/hierrr/agent-sync.git` 을 `~/agent-sync`로 clone하고
+> `setup/HANDOFF-solo.md` 읽고 수행해"**
+
+새벽 메모리 유지보수(dream 패스)는 포함되고, Syncthing과 기기 간 동기화 구성만
+빠집니다. 나중에 기기를 추가하려면 이 기기에서 `--role main`을 실행하세요 —
+기존 구성은 그대로 유지되고 동기화 구성만 더해집니다.
+
 에이전트 없이 직접 실행하려면:
 
 ```bash
@@ -64,6 +77,7 @@ git clone https://github.com/hierrr/agent-sync.git ~/agent-sync
 chmod +x ~/agent-sync/setup/setup-machine.sh
 ~/agent-sync/setup/setup-machine.sh --role main                  # 첫 기기
 ~/agent-sync/setup/setup-machine.sh --role sub --main-id <ID>    # 추가 기기
+~/agent-sync/setup/setup-machine.sh --role solo                  # 단일 기기 (동기화 없음)
 ~/agent-sync/setup/setup-machine.sh --accept <ID>                # main에서 나중 수락
 ~/agent-sync/setup/setup-machine.sh --enroll [분]                # 등록 창 재개방
 ```
@@ -73,6 +87,7 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 | 시점 | 할 일 |
 |---|---|
 | 첫 기기(main) | 에이전트에게 지시 → 보고받은 **main ID를 메모** |
+| 단일 기기(solo) | 에이전트에게 지시 — ID 전달·팝업 없음 |
 | 기기 추가(main 셋업 후 60분 이내) | 각 기기 에이전트에게 지시 (main ID 포함) |
 | 기기 추가(나중에) | 위와 동일 + **sub ID를 main 에이전트에게 전달** |
 | 각 기기 셋업 중(공통) | macOS **"Syncthing 로컬 네트워크 허용" 팝업 → 허용** 클릭 (기기당 1회) |
@@ -86,7 +101,11 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 - **설정 병합**: `setup/apply-settings.py`가 `claude/settings.base.json`(공유)을 각 기기의
   `~/.claude/settings.json`에 병합합니다. permissions 등 기기 로컬 항목은 보존되고,
   base가 바뀌면 감시 launchd가 자동 재적용합니다.
-- **새벽 유지보수** (main 전용, 4:30): 먼저 두 기기가 같은 파일을 동시에 수정해 생긴
+- **전역 메모리 초기화**: 첫 기기(main·solo) 셋업이 `memory/_global/GLOBAL.md`
+  뼈대를 만듭니다 (sub는 클러스터 동기화로 받음). 셋업 전부터 쓰던
+  `~/.claude/CLAUDE.md`가 있으면 내용을 GLOBAL.md로 흡수하고 원본은
+  `.premerge.bak`으로 보존합니다 — git 추적 파일은 건드리지 않습니다.
+- **새벽 유지보수** (main·solo, 4:30): 먼저 두 기기가 같은 파일을 동시에 수정해 생긴
   Syncthing 충돌을 병합하고 — 메모리 인덱스는 합집합, 에이전트·스킬 정의는
   headless LLM 호출로 병합(원본은 `setup/logs/conflict-archive/`에 보존) — 이어서
   **dream 패스**가 각 메모리 폴더를 큐레이션합니다: 중복·모순 사실 병합, 충돌
@@ -107,7 +126,8 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 
 - macOS (Windows는 아래 베타 안내 참고)
 - Claude Code CLI
-- Homebrew (Syncthing 자동 설치용 — 수동 설치로 대체 가능)
+- Homebrew (Syncthing 자동 설치용 — 수동 설치로 대체 가능. solo 모드는
+  Syncthing을 쓰지 않으므로 불필요)
 
 ## 운영
 
@@ -115,6 +135,8 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
   각 기기의 감시 launchd가 자동 병합합니다.
 - **역할 이전**: 새 기기에서 `--role main` 실행 + 기존 main의
   `com.palusomni.agentsync.merge` launchd 해제.
+- **solo → 클러스터 전환**: 같은 기기에서 `--role main` 실행 — 기존 구성은
+  유지되고 동기화 구성만 더해집니다. 이후 기기 추가는 위 빠른 시작과 동일.
 - **git 이용 수칙**: 이 저장소는 배포·개선 공유용입니다. 변경사항을 받으려면
   아무 기기에서나 한 번만 pull하면 됩니다 — 파일 내용은 Syncthing으로 몇 초 안에
   다른 모든 기기에 전파되고, 각 기기의 git 상태도 자동으로 맞춰집니다(post-merge
