@@ -21,6 +21,9 @@
      없으면 main과의 연결을 확인한 뒤 재확인)
    - `git -C ~/agent-sync status --short` 출력이 비어 있는지 (셋업이 git 추적
      파일을 더럽히지 않음 — 기존 CLAUDE.md가 있던 기기 포함)
+   - 셋업 전부터 쓰던 저장소가 있다면: 그 저장소에서 세션을 열거나 훅 파이프 테스트 후,
+     `~/agent-sync/memory/<저장소명>/` 에 기존 `~/.claude/projects/<키>/memory/` 파일들이
+     복사돼 있는지 (원본은 그대로 유지됨)
 4. **연결 확인** (main 등록 창이 열려 있으면 1~2분 내 자동 수락됨):
    `syncthing cli show connections` 에서 main이 connected 인지. 2분 정도 기다렸다
    재확인해도 된다.

@@ -27,6 +27,19 @@ with open(tmp, "w") as f:
     f.write("\n")
 os.replace(tmp, path)
 PY
+# Migrate legacy per-project memory (pre-agent-sync ~/.claude/projects/<key>/memory)
+# into the shared folder. Claude Code's key is the session cwd with every
+# non-alphanumeric character turned into '-'. Copy file-by-file without
+# overwriting and keep originals, so cluster machines sharing memory/ via
+# Syncthing each contribute their own legacy files; reruns are no-ops.
+dst="$HOME/agent-sync/memory/$name"
+for p in "$PWD" "$root"; do
+    key=$(printf '%s' "$p" | sed 's|[^A-Za-z0-9]|-|g')
+    src="$HOME/.claude/projects/$key/memory"
+    [ -d "$src" ] || continue
+    mkdir -p "$dst"
+    cp -Rn "$src/." "$dst/" 2>/dev/null || true
+done
 # Keep .claude out of accidental commits without touching the shared .gitignore
 if ! git -C "$root" check-ignore -q .claude 2>/dev/null; then
     gitdir=$(git -C "$root" rev-parse --absolute-git-dir 2>/dev/null) || exit 0

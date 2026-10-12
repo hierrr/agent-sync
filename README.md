@@ -108,7 +108,9 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 - **Auto-memory wiring**: Claude Code's SessionStart hook
   (`claude/hooks/ensure-automemory.sh`) points each git repo's auto-memory at
   `~/agent-sync/memory/<repo-name>` whenever you open it. The repo's `.claude`
-  is kept out of git via a local exclude.
+  is kept out of git via a local exclude. Memory from before setup
+  (`~/.claude/projects/*/memory/`) is merged in file by file when you open the
+  repo, with originals preserved and existing files never overwritten.
 - **Settings merge**: `setup/apply-settings.py` merges the shared
   `claude/settings.base.json` into each machine's `~/.claude/settings.json`.
   Machine-local entries such as permissions are preserved, and a watcher

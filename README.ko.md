@@ -98,6 +98,8 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 - **자동 메모리 연결**: Claude Code의 SessionStart 훅(`claude/hooks/ensure-automemory.sh`)이
   git 저장소를 열 때마다 그 저장소의 auto-memory 경로를 `~/agent-sync/memory/<저장소명>`
   으로 지정합니다. 저장소의 `.claude`는 git에 커밋되지 않게 로컬 exclude 처리됩니다.
+  셋업 전부터 쓰던 기기의 기존 메모리(`~/.claude/projects/*/memory/`)는 저장소를
+  열 때 파일 단위로 합류됩니다 — 원본 보존, 이미 있는 파일은 덮어쓰지 않음.
 - **설정 병합**: `setup/apply-settings.py`가 `claude/settings.base.json`(공유)을 각 기기의
   `~/.claude/settings.json`에 병합합니다. permissions 등 기기 로컬 항목은 보존되고,
   base가 바뀌면 감시 launchd가 자동 재적용합니다.
