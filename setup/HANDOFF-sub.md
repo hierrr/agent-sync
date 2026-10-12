@@ -24,6 +24,11 @@
    - 셋업 전부터 쓰던 저장소가 있다면: 그 저장소에서 세션을 열거나 훅 파이프 테스트 후,
      `~/agent-sync/memory/<저장소명>/` 에 기존 `~/.claude/projects/<키>/memory/` 파일들이
      복사돼 있는지 (원본은 그대로 유지됨)
+   - (codex 설치 기기만 해당) Codex 메모리 쓰기: 아무 git 저장소에서
+     `codex sandbox -c 'sandbox_mode="workspace-write"' -- /bin/sh -c 'echo x > "$HOME/agent-sync/memory/.sbx-test" && echo CODEX_MEM_WRITE_OK; rm -f "$HOME/agent-sync/memory/.sbx-test"'`
+     가 `CODEX_MEM_WRITE_OK`를 출력하는지 (모델 호출 없음). codex 미설치 기기는 건너뜀
+   - (codex 설치 기기만 해당) `codex features list | grep '^memories '` 가 `false`인지 —
+     agent-sync와 별개의 이중 메모리 방지. true면 바꾸지 말고 사용자에게 보고만
 4. **연결 확인** (main 등록 창이 열려 있으면 1~2분 내 자동 수락됨):
    `syncthing cli show connections` 에서 main이 connected 인지. 2분 정도 기다렸다
    재확인해도 된다.

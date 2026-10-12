@@ -29,7 +29,7 @@ gives you the cross-agent unification without any syncing.
 | Global memory | `~/.claude/CLAUDE.md` (symlink) imports `memory/_global/GLOBAL.md` → loaded into every session on every machine |
 | Shared Claude Code settings | `claude/settings.base.json` is auto-merged into each machine's `~/.claude/settings.json` (machine-specific entries preserved) |
 | Personal agents · skills · commands | `~/.claude/agents` etc. are symlinks — synced across machines, not distributed via git |
-| Codex global instructions | `~/.codex/AGENTS.md` symlink — points Codex at the same memory folder |
+| Codex global instructions | `~/.codex/AGENTS.md` symlink — points Codex at the same memory folder; setup also grants Codex's sandbox write access to it (`writable_roots`) |
 
 Note: `autoMemoryDirectory` is ignored for security reasons when set in a
 committed `.claude/settings.json`, so a hook generating `settings.local.json`
@@ -120,6 +120,15 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
   cluster sync). If a `~/.claude/CLAUDE.md` existed before setup, its content
   is absorbed into GLOBAL.md and the original is kept as `.premerge.bak` —
   git-tracked files are never touched.
+- **Codex integration**: besides the `~/.codex/AGENTS.md` symlink, setup adds
+  `~/agent-sync/memory` to `writable_roots` under `[sandbox_workspace_write]`
+  in `~/.codex/config.toml` (Codex's sandbox blocks writes outside the working
+  folder, so without this the memory-saving instruction fails). It backs up to
+  `config.toml.pre-agent-sync.bak` once, only when it actually changes the file,
+  and leaves shapes it can't edit safely (e.g. multi-line arrays) untouched,
+  printing a manual-edit notice instead. Keep Codex's own memory feature
+  (memories) turned off — enabling it creates a second memory separate from
+  agent-sync.
 - **Nightly maintenance** (main and solo, 4:30 AM): first merges Syncthing
   conflicts caused by two machines editing the same file at once — memory
   indexes as a union, agent/skill definitions via a headless LLM call
@@ -146,9 +155,24 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 
 - macOS (for Windows, see the beta notes below)
 - Claude Code CLI (any install method — native installer, global npm, Homebrew, etc.;
-  standard locations and the login-shell PATH are searched automatically)
+  standard locations and the login-shell PATH are searched automatically).
+  The native installer is recommended; an npm install can be switched over
+  with `claude install`.
 - Homebrew (for automatic Syncthing install — manual install works too; not
   needed in solo mode, which doesn't use Syncthing)
+
+## Nightly-maintenance machine (main, solo) prerequisites
+
+The machine that runs the 4:30 AM maintenance only works if these hold:
+
+1. It must be awake at 04:30 — setting `pmset` sleep to 0 is recommended, or
+   schedule a wake (`pmset repeat`).
+2. A user session must stay logged in — the nightly job runs in the launchd
+   user (gui) domain, and claude authentication relies on the login keychain.
+3. Unattended recovery after a reboot needs auto-login, which is impossible
+   while FileVault is on (a macOS restriction). With FileVault kept on, one
+   manual login is needed after each reboot; whether to turn FileVault off is
+   the user's per-machine decision.
 
 ## Operations
 

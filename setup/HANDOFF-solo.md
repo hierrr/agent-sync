@@ -28,6 +28,19 @@ solo는 단일 기기 모드다: 한 기기 안에서 여러 에이전트(Claude
      복사돼 있는지 (원본은 그대로 유지됨)
    - `env -i HOME="$HOME" PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/python3 ~/agent-sync/setup/merge-sync-conflicts.py --check-claude`
      가 claude 경로를 출력하는지 (launchd의 빈 PATH 환경에서 새벽 작업이 claude를 찾는지)
+   - (codex 설치 기기만 해당) Codex 메모리 쓰기: 아무 git 저장소에서
+     `codex sandbox -c 'sandbox_mode="workspace-write"' -- /bin/sh -c 'echo x > "$HOME/agent-sync/memory/.sbx-test" && echo CODEX_MEM_WRITE_OK; rm -f "$HOME/agent-sync/memory/.sbx-test"'`
+     가 `CODEX_MEM_WRITE_OK`를 출력하는지 (모델 호출 없음). codex 미설치 기기는 건너뜀
+   - (codex 설치 기기만 해당) `codex features list | grep '^memories '` 가 `false`인지 —
+     agent-sync와 별개의 이중 메모리 방지. true면 바꾸지 말고 사용자에게 보고만
+   - 운영 전제 점검 (읽기 전용 — 결과를 사용자에게 보고, 변경은 사용자 결정):
+     - `pmset -g custom | grep -E "^ *sleep"` — 04:30에 깨어 있으려면 sleep 0(또는
+       pmset repeat 예약)이어야 함
+     - `fdesetup status` 와 `sysadminctl -autologin status 2>&1 | tail -1` — 무인 재부팅
+       복구(자동 로그인)는 FileVault가 켜져 있으면 불가(macOS 제약). FileVault 유지 시
+       재부팅 뒤 수동 로그인 1회 필요
+     - `stat -f %Su /dev/console` — 현재 로그인된 콘솔 사용자. 새벽 작업(launchd gui
+       도메인)과 claude 인증(로그인 키체인)은 로그인 상태가 전제
 4. **사용자에게 다음 형식으로 안내한다**:
 
    > 셋업과 검증이 끝났습니다. 이 기기는 단일 기기(solo) 모드입니다 — 에이전트 간

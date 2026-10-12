@@ -198,12 +198,17 @@ if [ ! -L "$target" ]; then
     echo "linked ~/.claude/CLAUDE.md"
 fi
 
-# 3. Codex 전역 지침 심링크
-if [ -d "$HOME/.codex" ] && [ ! -L "$HOME/.codex/AGENTS.md" ]; then
-    [ -f "$HOME/.codex/AGENTS.md" ] && cat "$HOME/.codex/AGENTS.md" >> "$SYNC/codex/AGENTS.md" \
-        && mv "$HOME/.codex/AGENTS.md" "$HOME/.codex/AGENTS.md.premerge.bak"
-    ln -s "$SYNC/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
-    echo "linked ~/.codex/AGENTS.md"
+# 3. Codex 전역 지침 심링크 + 메모리 폴더 쓰기 권한 (Codex 샌드박스는 작업 폴더
+#    밖 쓰기를 차단하므로 writable_roots에 ~/agent-sync/memory를 넣어야
+#    AGENTS.md의 메모리 저장 지시가 실제로 동작한다)
+if [ -d "$HOME/.codex" ]; then
+    if [ ! -L "$HOME/.codex/AGENTS.md" ]; then
+        [ -f "$HOME/.codex/AGENTS.md" ] && cat "$HOME/.codex/AGENTS.md" >> "$SYNC/codex/AGENTS.md" \
+            && mv "$HOME/.codex/AGENTS.md" "$HOME/.codex/AGENTS.md.premerge.bak"
+        ln -s "$SYNC/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
+        echo "linked ~/.codex/AGENTS.md"
+    fi
+    /usr/bin/python3 "$SYNC/setup/apply-codex-config.py"
 fi
 
 # 4. 공유 base 설정을 이 머신의 ~/.claude/settings.json 에 병합

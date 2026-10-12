@@ -27,7 +27,7 @@
 | 전역 메모리 | `~/.claude/CLAUDE.md`(심링크)가 `memory/_global/GLOBAL.md`를 임포트 → 모든 프로젝트·모든 기기의 세션에 로드 |
 | Claude Code 공유 설정 | `claude/settings.base.json`을 각 기기의 `~/.claude/settings.json`에 자동 병합 (기기 고유 항목은 보존) |
 | 개인 에이전트·스킬·커맨드 | `~/.claude/agents` 등 심링크 — 기기 간 동기화, git 배포에는 미포함 |
-| Codex 전역 지침 | `~/.codex/AGENTS.md` 심링크 — 같은 메모리 폴더를 읽고 쓰도록 안내 |
+| Codex 전역 지침 | `~/.codex/AGENTS.md` 심링크 — 같은 메모리 폴더를 읽고 쓰도록 안내하며, 셋업이 Codex 샌드박스 쓰기 권한(`writable_roots`)도 함께 설정 |
 
 참고: `autoMemoryDirectory`는 커밋된 `.claude/settings.json`에서는 보안상 무시되기
 때문에, 훅이 기기마다 `settings.local.json`을 자동 생성하는 방식이 유일한 방법입니다.
@@ -107,6 +107,13 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
   뼈대를 만듭니다 (sub는 클러스터 동기화로 받음). 셋업 전부터 쓰던
   `~/.claude/CLAUDE.md`가 있으면 내용을 GLOBAL.md로 흡수하고 원본은
   `.premerge.bak`으로 보존합니다 — git 추적 파일은 건드리지 않습니다.
+- **Codex 연동**: `~/.codex/AGENTS.md` 심링크에 더해, `~/.codex/config.toml`의
+  `[sandbox_workspace_write]`에 `writable_roots`로 `~/agent-sync/memory`를 추가합니다
+  (Codex 샌드박스는 작업 폴더 밖 쓰기를 막아, 이 설정이 없으면 메모리 저장 지시가
+  실패합니다). 내용을 바꿀 때만 최초 1회 `config.toml.pre-agent-sync.bak`으로
+  백업하며, 확신할 수 없는 형태(여러 줄 배열 등)는 건드리지 않고 수동 추가를
+  안내합니다. Codex 자체 메모리 기능(memories)은 꺼둔 상태 유지를 권장합니다 —
+  켜면 agent-sync와 별개의 두 번째 메모리가 생깁니다.
 - **새벽 유지보수** (main·solo, 4:30): 먼저 두 기기가 같은 파일을 동시에 수정해 생긴
   Syncthing 충돌을 병합하고 — 메모리 인덱스는 합집합, 에이전트·스킬 정의는
   headless LLM 호출로 병합(원본은 `setup/logs/conflict-archive/`에 보존) — 이어서
@@ -128,9 +135,22 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 
 - macOS (Windows는 아래 베타 안내 참고)
 - Claude Code CLI (설치 방식 무관 — 네이티브 설치판·npm 전역·Homebrew 등 표준
-  경로와 로그인 셸 PATH를 자동 탐색)
+  경로와 로그인 셸 PATH를 자동 탐색). 네이티브 설치판을 권장하며, npm 설치판은
+  `claude install`로 전환할 수 있습니다.
 - Homebrew (Syncthing 자동 설치용 — 수동 설치로 대체 가능. solo 모드는
   Syncthing을 쓰지 않으므로 불필요)
+
+## 새벽 유지보수 기기(main·solo) 운영 전제
+
+새벽 4:30 유지보수를 돌리는 기기는 다음 조건이 맞아야 실제로 실행됩니다.
+
+1. 04:30에 깨어 있어야 합니다 — `pmset`으로 sleep 0 설정을 권장하고, 어렵다면
+   wake 예약(`pmset repeat`)을 걸어 두세요.
+2. 사용자 세션이 로그인된 상태여야 합니다 — 새벽 작업은 launchd 사용자(gui) 도메인에서
+   돌고, claude 인증은 로그인 키체인을 전제로 합니다.
+3. 무인 재부팅 복구를 원하면 자동 로그인이 필요한데, FileVault가 켜져 있으면
+   자동 로그인이 불가능합니다(macOS 제약). FileVault 유지 시 재부팅 뒤 수동 로그인
+   1회가 필요하며, FileVault 해제 여부는 기기별로 사용자가 결정할 일입니다.
 
 ## 운영
 
