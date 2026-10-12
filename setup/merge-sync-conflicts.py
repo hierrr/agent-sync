@@ -39,6 +39,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 
@@ -48,13 +49,46 @@ LOG = []
 
 
 def find_claude_bin():
+    # Test fixtures point this at a stub binary.
     override = os.environ.get("AGENT_SYNC_CLAUDE_BIN")
     if override and os.path.exists(override):
         return override
-    return next((c for c in [shutil.which("claude"),
-                             os.path.expanduser("~/.claude/local/claude"),
-                             "/usr/local/bin/claude", "/opt/homebrew/bin/claude"]
-                if c and os.path.exists(c)), None)
+    # Launchd hands this job a bare system PATH, so search well-known install
+    # locations too: official installers first (Anthropic native, legacy
+    # ~/.claude/local), then the caller's PATH, then package managers and
+    # node version managers.
+    home = os.path.expanduser("~")
+    dirs = [f"{home}/.local/bin", f"{home}/.claude/local"]
+    dirs += (os.environ.get("PATH") or "").split(os.pathsep)
+    dirs += ["/opt/homebrew/bin", "/usr/local/bin",
+             f"{home}/.volta/bin", f"{home}/.bun/bin", f"{home}/.npm-global/bin",
+             f"{home}/Library/pnpm", f"{home}/.local/share/pnpm"]
+    dirs += sorted(glob.glob(f"{home}/.nvm/versions/node/*/bin"), reverse=True)
+    found = shutil.which("claude", path=os.pathsep.join(d for d in dirs if d))
+    if found:
+        return found
+    # Last resort: ask a login shell, which sees whatever the user's own
+    # profile puts on PATH (covers custom locations this list doesn't know).
+    try:
+        out = subprocess.run(["/bin/zsh", "-lc", "command -v claude"],
+                             capture_output=True, text=True, timeout=10)
+        cand = out.stdout.strip().splitlines()[-1] if out.stdout.strip() else ""
+        if cand and os.path.exists(cand):
+            return cand
+    except Exception:
+        pass
+    return None
+
+
+# Preflight: `--check-claude` prints where the nightly job would find the
+# claude CLI and exits without touching anything. Run it with launchd's bare
+# PATH to verify a machine before the first 4:30 run:
+#   env -i HOME="$HOME" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+#     /usr/bin/python3 setup/merge-sync-conflicts.py --check-claude
+if "--check-claude" in sys.argv:
+    _found = find_claude_bin()
+    print(_found or "NOT FOUND")
+    sys.exit(0 if _found else 1)
 
 
 # Built-in auto-dream leaves .consolidate-lock behind after a hard kill and then

@@ -127,7 +127,8 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
 ## 요구 사항
 
 - macOS (Windows는 아래 베타 안내 참고)
-- Claude Code CLI
+- Claude Code CLI (설치 방식 무관 — 네이티브 설치판·npm 전역·Homebrew 등 표준
+  경로와 로그인 셸 PATH를 자동 탐색)
 - Homebrew (Syncthing 자동 설치용 — 수동 설치로 대체 가능. solo 모드는
   Syncthing을 쓰지 않으므로 불필요)
 

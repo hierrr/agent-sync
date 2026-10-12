@@ -26,6 +26,8 @@ solo는 단일 기기 모드다: 한 기기 안에서 여러 에이전트(Claude
    - 셋업 전부터 쓰던 저장소가 있다면: 그 저장소에서 세션을 열거나 훅 파이프 테스트 후,
      `~/agent-sync/memory/<저장소명>/` 에 기존 `~/.claude/projects/<키>/memory/` 파일들이
      복사돼 있는지 (원본은 그대로 유지됨)
+   - `env -i HOME="$HOME" PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/python3 ~/agent-sync/setup/merge-sync-conflicts.py --check-claude`
+     가 claude 경로를 출력하는지 (launchd의 빈 PATH 환경에서 새벽 작업이 claude를 찾는지)
 4. **사용자에게 다음 형식으로 안내한다**:
 
    > 셋업과 검증이 끝났습니다. 이 기기는 단일 기기(solo) 모드입니다 — 에이전트 간
