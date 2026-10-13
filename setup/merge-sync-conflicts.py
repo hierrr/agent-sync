@@ -23,6 +23,8 @@ last successful dream run (tracked in setup/logs/dream-state.json). Every
 directory is archived to setup/logs/dream-archive/ before the call and restored
 verbatim if the call errors, times out, or fails its post-run sanity checks —
 so a bad run never loses data, it just leaves that directory for next time.
+Archive dirs older than DREAM_ARCHIVE_RETENTION_DAYS are pruned at the end of
+each run.
 Project-dir runs are also allowed to touch one file outside their own
 directory — _global/GLOBAL.md, for fact promotion — so that file is archived
 and guarded alongside the project dir and restored atomically with it if
@@ -33,6 +35,7 @@ Testing overrides (both fall back to the real locations when unset):
   instead of ~/agent-sync.
 - AGENT_SYNC_CLAUDE_BIN points at a stub "claude" binary instead of the real CLI.
 """
+import filecmp
 import glob
 import json
 import os
@@ -207,6 +210,7 @@ for conflict in glob.glob(f"{CLAUDE_ROOT}/**/*sync-conflict*", recursive=True):
 # if the call fails or the result doesn't pass the post-guards.
 # ---------------------------------------------------------------------------
 DREAM_ARCHIVE = os.path.join(AGENT_SYNC_ROOT, "setup/logs/dream-archive")
+DREAM_ARCHIVE_RETENTION_DAYS = 30
 DREAM_STATE_FILE = os.path.join(AGENT_SYNC_ROOT, "setup/logs/dream-state.json")
 
 DREAM_PROMPT = """You are running the nightly "dream pass" — memory curation — for a \
@@ -317,6 +321,31 @@ def dream_post_guard_failure(d, name, pre_md_count, pre_global_lines=None, globa
     return None
 
 
+def dir_file_set(d):
+    found = set()
+    for base, _dirs, files in os.walk(d):
+        for fn in files:
+            found.add(os.path.relpath(os.path.join(base, fn), d))
+    return found
+
+
+def dream_change_summary(d, archive_dir, global_md_path=None, global_archive=None):
+    """Compare D against its pre-run archive; return the 'curated' log suffix."""
+    now_files = dir_file_set(d)
+    old_files = dir_file_set(archive_dir)
+    modified = sum(1 for rel in now_files & old_files
+                   if not filecmp.cmp(os.path.join(d, rel), os.path.join(archive_dir, rel),
+                                      shallow=False))
+    added = len(now_files - old_files)
+    removed = len(old_files - now_files)
+    parts = [f"{count} {label}" for count, label in
+             ((modified, "modified"), (added, "added"), (removed, "removed")) if count]
+    if (global_archive and os.path.exists(global_md_path)
+            and not filecmp.cmp(global_md_path, global_archive, shallow=False)):
+        parts.append("GLOBAL.md updated")
+    return f" ({', '.join(parts)})" if parts else " (no changes)"
+
+
 def run_dream_pass(d, dream_state):
     name = os.path.basename(d)
     is_project = name != "_global"
@@ -344,7 +373,7 @@ def run_dream_pass(d, dream_state):
     pre_md_count = len(dir_md_files(d))
     # Collision-suffix the stamp if it's already taken (e.g. a manual re-run
     # of the whole script within the same second) -- copytree below requires
-    # the destination not exist, and archive dirs are otherwise never cleaned.
+    # the destination not exist.
     base_stamp = time.strftime("%Y%m%d-%H%M%S")
     stamp = base_stamp
     n = 1
@@ -399,7 +428,34 @@ def run_dream_pass(d, dream_state):
 
     dream_state[name] = datetime.now(timezone.utc).isoformat()
     save_dream_state(dream_state)
-    LOG.append(f"dream: curated {name}")
+    summary = dream_change_summary(d, archive_dir, global_md_path, global_archive)
+    LOG.append(f"dream: curated {name}{summary}")
+
+
+def prune_dream_archive():
+    if not os.path.isdir(DREAM_ARCHIVE):
+        return
+    cutoff = time.time() - DREAM_ARCHIVE_RETENTION_DAYS * 86400
+    pruned = 0
+    for entry in sorted(os.listdir(DREAM_ARCHIVE)):
+        path = os.path.join(DREAM_ARCHIVE, entry)
+        if not os.path.isdir(path):
+            continue
+        # Stamps with a collision suffix ("-2") share the same 15-char prefix.
+        try:
+            stamp_ts = time.mktime(time.strptime(entry[:15], "%Y%m%d-%H%M%S"))
+        except ValueError:
+            continue
+        if stamp_ts >= cutoff:
+            continue
+        try:
+            shutil.rmtree(path)
+            pruned += 1
+        except OSError as exc:
+            LOG.append(f"dream: could not prune archive dir {path} ({exc})")
+    if pruned:
+        LOG.append(f"dream: pruned {pruned} archive dir(s) older than "
+                   f"{DREAM_ARCHIVE_RETENTION_DAYS} days")
 
 
 if CLAUDE_BIN is None:
@@ -409,5 +465,10 @@ else:
     for _dream_dir in sorted(glob.glob(os.path.join(ROOT, "*"))):
         if os.path.isdir(_dream_dir):
             run_dream_pass(_dream_dir, _dream_state)
+
+try:
+    prune_dream_archive()
+except OSError as exc:
+    LOG.append(f"dream: archive prune failed ({exc})")
 
 print("\n".join(LOG) if LOG else "no conflicts")

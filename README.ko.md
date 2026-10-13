@@ -121,7 +121,7 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
   리뷰 사본 통합, 상대 날짜의 절대화, 프로젝트 무관 사실의 `_global/GLOBAL.md`
   승격, `MEMORY.md` 인덱스 재구축. 실행 전 폴더 전체(GLOBAL.md 포함)를
   `setup/logs/dream-archive/`에 보관했다가 사후 점검 실패 시 원자적으로 복원하며,
-  변경 없는 폴더는 건너뜁니다. Claude Code 내장 auto-dream의 잠금 파일 잔존
+  변경 없는 폴더는 건너뜁니다. 30일이 지난 보관 폴더는 실행 끝에 정리됩니다. Claude Code 내장 auto-dream의 잠금 파일 잔존
   버그도 청소합니다.
 - **Syncthing은 메뉴바 앱으로 구동**: macOS 15+에서 로컬 네트워크 권한을 받을 수 있는
   방식이 앱뿐이기 때문입니다 — 백그라운드 서비스(brew services)는 권한을 받지 못해

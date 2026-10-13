@@ -139,7 +139,8 @@ chmod +x ~/agent-sync/setup/setup-machine.sh
   facts to `_global/GLOBAL.md`, and rebuilding each `MEMORY.md` index. Every
   directory (including `GLOBAL.md`) is archived to `setup/logs/dream-archive/`
   first and restored atomically if the run fails its sanity guards; unchanged
-  directories are skipped. Also cleans up a stale-lock-file bug in Claude
+  directories are skipped, and archive folders older than 30 days are pruned
+  at the end of each run. Also cleans up a stale-lock-file bug in Claude
   Code's built-in auto-dream.
 - **Syncthing runs as the menu bar app**: on macOS 15+ the app is the only
   form that can be granted Local Network permission — a background service
