@@ -23,7 +23,8 @@
      파일을 더럽히지 않음 — 기존 CLAUDE.md가 있던 기기 포함)
    - 셋업 전부터 쓰던 저장소가 있다면: 그 저장소에서 세션을 열거나 훅 파이프 테스트 후,
      `~/agent-sync/memory/<저장소명>/` 에 기존 `~/.claude/projects/<키>/memory/` 파일들이
-     복사돼 있는지 (원본은 그대로 유지됨)
+     복사돼 있는지 (원본은 그대로 유지됨. 이관은 기기·저장소별 첫 1회만 —
+     `~/.claude/agent-sync-migrated/` 에 표식이 이미 있으면 재복사하지 않는 게 정상)
    - (codex 설치 기기만 해당) Codex 메모리 쓰기: 아무 git 저장소에서
      `codex sandbox -c 'sandbox_mode="workspace-write"' -- /bin/sh -c 'echo x > "$HOME/agent-sync/memory/.sbx-test" && echo CODEX_MEM_WRITE_OK; rm -f "$HOME/agent-sync/memory/.sbx-test"'`
      가 `CODEX_MEM_WRITE_OK`를 출력하는지 (모델 호출 없음). codex 미설치 기기는 건너뜀
